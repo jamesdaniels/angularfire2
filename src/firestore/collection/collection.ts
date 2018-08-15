@@ -3,6 +3,7 @@ import { fromCollectionRef } from '../observable/fromRef';
 import { map, filter, scan } from 'rxjs/operators';
 
 import { Injectable } from '@angular/core';
+import { firestore } from 'firebase';
 
 import { DocumentChangeType, CollectionReference, Query, DocumentReference, DocumentData, QueryFn, AssociatedReference, DocumentChangeAction, DocumentChange } from '../interfaces';
 import { docChanges, sortedChanges } from './changes';
@@ -61,17 +62,19 @@ export class AngularFirestoreCollection<T=DocumentData> {
    * your own data structure.
    * @param events
    */
-  stateChanges(events?: DocumentChangeType[]): Observable<DocumentChangeAction<T>[]> {
+  stateChanges(eventsOrConfig?: DocumentChangeType[] | firestore.SnapshotListenOptions, listenOptions?: firestore.SnapshotListenOptions): Observable<DocumentChangeAction<T>[]> {
+    const events = Array.isArray(eventsOrConfig) && eventsOrConfig || undefined;
+    const options = !Array.isArray(eventsOrConfig) && eventsOrConfig || listenOptions;
     if(!events || events.length === 0) {
       return this.afs.scheduler.keepUnstableUntilFirst(
         this.afs.scheduler.runOutsideAngular(
-          docChanges<T>(this.query)
+          docChanges<T>(this.query, options)
         )
       );
     }
     return this.afs.scheduler.keepUnstableUntilFirst(
         this.afs.scheduler.runOutsideAngular(
-          docChanges<T>(this.query)
+          docChanges<T>(this.query, options)
         )
       )
       .pipe(
@@ -85,8 +88,10 @@ export class AngularFirestoreCollection<T=DocumentData> {
    * but it collects each event in an array over time.
    * @param events
    */
-  auditTrail(events?: DocumentChangeType[]): Observable<DocumentChangeAction<T>[]> {
-    return this.stateChanges(events).pipe(scan((current, action) => [...current, ...action], []));
+  auditTrail(eventsOrConfig?: DocumentChangeType[] | firestore.SnapshotListenOptions, listenOptions?: firestore.SnapshotListenOptions): Observable<DocumentChangeAction<T>[]> {
+    const events = Array.isArray(eventsOrConfig) && eventsOrConfig || undefined;
+    const options = !Array.isArray(eventsOrConfig) && eventsOrConfig || listenOptions;
+    return this.stateChanges(events, options).pipe(scan((current, action) => [...current, ...action], []));
   }
 
   /**
@@ -94,9 +99,11 @@ export class AngularFirestoreCollection<T=DocumentData> {
    * query order.
    * @param events
    */
-  snapshotChanges(events?: DocumentChangeType[]): Observable<DocumentChangeAction<T>[]> {
+  snapshotChanges(eventsOrConfig?: DocumentChangeType[] | firestore.SnapshotListenOptions, listenOptions?: firestore.SnapshotListenOptions): Observable<DocumentChangeAction<T>[]> {
+    const events = Array.isArray(eventsOrConfig) && eventsOrConfig || undefined;
+    const options = !Array.isArray(eventsOrConfig) && eventsOrConfig || listenOptions;
     const validatedEvents = validateEventsArray(events);
-    const sortedChanges$ = sortedChanges<T>(this.query, validatedEvents);
+    const sortedChanges$ = sortedChanges<T>(this.query, validatedEvents, options);
     const scheduledSortedChanges$ = this.afs.scheduler.runOutsideAngular(sortedChanges$);
     return this.afs.scheduler.keepUnstableUntilFirst(scheduledSortedChanges$);
   }
@@ -104,8 +111,8 @@ export class AngularFirestoreCollection<T=DocumentData> {
   /**
    * Listen to all documents in the collection and its possible query as an Observable.
    */
-  valueChanges(): Observable<T[]> {
-    const fromCollectionRef$ = fromCollectionRef<T>(this.query);
+  valueChanges(listenOptions?: firestore.SnapshotListenOptions): Observable<T[]> {
+    const fromCollectionRef$ = fromCollectionRef<T>(this.query, listenOptions);
     const scheduled$ = this.afs.scheduler.runOutsideAngular(fromCollectionRef$);
     return this.afs.scheduler.keepUnstableUntilFirst(scheduled$)
       .pipe(

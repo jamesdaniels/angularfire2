@@ -9,7 +9,7 @@ import { Query, DocumentChangeType, DocumentChange, DocumentChangeAction, Action
  * order of occurence.
  * @param query
  */
-export function docChanges<T>(query: Query): Observable<DocumentChangeAction<T>[]> {
+export function docChanges<T>(query: Query, listenOptions?: firestore.SnapshotListenOptions): Observable<DocumentChangeAction<T>[]> {
   return fromCollectionRef(query)
     .pipe(
       map(action =>

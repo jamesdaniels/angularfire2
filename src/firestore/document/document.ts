@@ -4,6 +4,7 @@ import { fromDocRef } from '../observable/fromRef';
 import { map } from 'rxjs/operators';
 
 import { Injectable } from '@angular/core';
+import { firestore } from 'firebase';
 
 import { AngularFirestore, associateQuery } from '../firestore';
 import { AngularFirestoreCollection } from '../collection/collection';
@@ -78,8 +79,8 @@ export class AngularFirestoreDocument<T=DocumentData> {
   /**
    * Listen to snapshot updates from the document.
    */
-  snapshotChanges(): Observable<Action<DocumentSnapshot<T>>> {
-    const fromDocRef$ = fromDocRef<T>(this.ref);
+  snapshotChanges(options?: firestore.SnapshotListenOptions): Observable<Action<DocumentSnapshot<T>>> {
+    const fromDocRef$ = fromDocRef<T>(this.ref, options);
     const scheduledFromDocRef$ = this.afs.scheduler.runOutsideAngular(fromDocRef$);
     return this.afs.scheduler.keepUnstableUntilFirst(scheduledFromDocRef$);
   }
@@ -87,8 +88,8 @@ export class AngularFirestoreDocument<T=DocumentData> {
   /**
    * Listen to unwrapped snapshot updates from the document.
    */
-  valueChanges(): Observable<T|undefined> {
-    return this.snapshotChanges().pipe(
+  valueChanges(options?: firestore.SnapshotListenOptions): Observable<T|undefined> {
+    return this.snapshotChanges(options).pipe(
       map(action => {
         return action.payload.data();
       })
