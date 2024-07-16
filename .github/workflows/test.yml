@@ -98,10 +98,9 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
         browser: [ chrome-headless, firefox-headless ]
-        # TODO(davideast): Figure out why Safari tests timeout only on CI
-        # include:
-        # - os: macos-latest
-        #   browser: safari
+        include:
+        - os: macos-latest
+          browser: safari
       fail-fast: false
     steps:
       - name: Checkout
